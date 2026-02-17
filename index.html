@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Простой калькулятор</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      line-height: 1.4;
+    }
+
+    h1 {
+      margin-bottom: 16px;
+    }
+
+    .options {
+      margin-bottom: 20px;
+    }
+
+    .options label {
+      display: block;
+      margin: 8px 0;
+      font-size: 18px;
+    }
+
+    .result {
+      font-size: 22px;
+      font-weight: bold;
+    }
+
+    button {
+      margin-top: 16px;
+      padding: 10px 14px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .image-wrap {
+      margin-top: 20px;
+    }
+
+    .image-wrap img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>AI in Music online scoring</h1>
+
+  <div class="options">
+    <label><input type="checkbox" class="item"> lyrics</label>
+    <label><input type="checkbox" class="item"> voice</label>
+    <label><input type="checkbox" class="item"> music</label>
+  </div>
+
+  <div class="result">Sum (10 - complete AI): <span id="score">0</span></div>
+  <button id="generateBtn" type="button">Generate image</button>
+  <div class="image-wrap">
+    <img id="resultImage" alt="Generated AI score image">
+  </div>
+
+  <script>
+    const checkboxes = document.querySelectorAll(".item");
+    const scoreEl = document.getElementById("score");
+    const generateBtn = document.getElementById("generateBtn");
+    const resultImage = document.getElementById("resultImage");
+
+    let currentScore = 0;
+
+    function formatScore(value) {
+      return Number(value.toFixed(1)).toString();
+    }
+
+    function updateScore() {
+      let checkedCount = 0;
+      checkboxes.forEach((checkbox) => {
+        if (checkbox.checked) checkedCount += 1;
+      });
+
+      const weight = 1 / checkboxes.length;
+      const score = checkedCount * weight * 10;
+      currentScore = score;
+
+      scoreEl.textContent = formatScore(score);
+    }
+
+    function generateImage() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 340;
+      canvas.height = 110;
+      const ctx = canvas.getContext("2d");
+
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#000000";
+      ctx.lineWidth = 4;
+      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
+
+      let text = "";
+      if (Math.abs(currentScore) < 0.000001) {
+        text = "NOAI";
+      } else if (Math.abs(currentScore - 10) < 0.000001) {
+        text = "ALLAI";
+      } else {
+        text = `${formatScore(currentScore)}AI`;
+      }
+
+      ctx.fillStyle = "#000000";
+      ctx.font = "bold 88px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+
+      resultImage.src = canvas.toDataURL("image/png");
+    }
+
+    checkboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", updateScore);
+    });
+    generateBtn.addEventListener("click", generateImage);
+  </script>
+</body>
+</html>
