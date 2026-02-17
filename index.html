@@ -3,13 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI in Music Scoring</title>
-  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="white"/%3E%3Crect x="3" y="3" width="58" height="58" fill="none" stroke="black" stroke-width="3"/%3E%3Cellipse cx="26" cy="44" rx="9" ry="7" fill="black"/%3E%3Crect x="30" y="18" width="4" height="28" fill="black"/%3E%3Ctext x="12" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="black"%3E1%3C/text%3E%3Ctext x="45" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="black"%3E0%3C/text%3E%3C/svg%3E'>
+  <title>AI in Music scoring</title>
+  <link rel="icon" type="image/svg+xml" href='data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"%3E%3Crect width="64" height="64" fill="white"/%3E%3Crect x="3" y="3" width="58" height="58" fill="none" stroke="black" stroke-width="3"/%3E%3Cellipse cx="26" cy="44" rx="9" ry="7" fill="black"/%3E%3Crect x="30" y="18" width="4" height="28" fill="black"/%3E%3Ctext x="12" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="black"%3EA%3C/text%3E%3Ctext x="45" y="22" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="black"%3EI%3C/text%3E%3C/svg%3E'>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 40px;
+      margin: 0;
       line-height: 1.4;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 300px;
+      padding: 24px;
+      border: 1px solid #000;
     }
 
     h1 {
@@ -31,13 +42,6 @@
       font-weight: bold;
     }
 
-    button {
-      margin-top: 16px;
-      padding: 10px 14px;
-      font-size: 16px;
-      cursor: pointer;
-    }
-
     .image-wrap {
       margin-top: 20px;
     }
@@ -47,54 +51,75 @@
       height: auto;
       display: block;
     }
+
+    .download-link {
+      display: inline-block;
+      margin-top: 10px;
+      color: #000;
+    }
   </style>
 </head>
 <body>
-  <h1>AI in Music Scoring</h1>
+  <div class="app">
+    <h1>AI in Music scoring</h1>
 
-  <div class="options" id="options"></div>
+    <div class="options" id="options"></div>
 
-  <div class="result">Sum (10 - complete AI): <span id="score">0</span></div>
-  <button id="generateBtn" type="button">Generate image</button>
-  <div class="image-wrap">
-    <img id="resultImage" alt="Generated AI score image">
+    <div class="result">Scoring result: <span id="score">0</span></div>
+    <div class="image-wrap">
+      <img id="resultImage" alt="Generated AI score image">
+      <a id="downloadBtn" class="download-link" href="#" download hidden>Download image</a>
+    </div>
   </div>
 
   <script>
     const optionsEl = document.getElementById("options");
     const scoreEl = document.getElementById("score");
-    const generateBtn = document.getElementById("generateBtn");
     const resultImage = document.getElementById("resultImage");
+    const downloadBtn = document.getElementById("downloadBtn");
 
     let checkboxes = [];
+    let completeSongCheckbox = null;
     let currentScore = 0;
 
     function formatScore(value) {
       return Number(value.toFixed(1)).toString();
     }
 
-    function parseCsv(text) {
-      const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-      if (lines.length < 2) return [];
-
-      const headers = lines[0].split(",").map((v) => v.trim().toLowerCase());
-      const typeIndex = headers.indexOf("type");
-      const coeffIndex = headers.indexOf("coefficient");
-      if (typeIndex === -1 || coeffIndex === -1) return [];
-
-      const items = [];
-      for (let i = 1; i < lines.length; i += 1) {
-        const cols = lines[i].split(",").map((v) => v.trim());
-        const type = cols[typeIndex];
-        const coefficientRaw = cols[coeffIndex] || "";
-        const coefficient = Number.parseFloat(coefficientRaw.replace(",", "."));
-        if (!type || Number.isNaN(coefficient)) continue;
-        items.push({ type, coefficient });
-      }
-      return items;
+    function getInnerXml(node) {
+      const serializer = new XMLSerializer();
+      return Array.from(node.childNodes)
+        .map((child) => serializer.serializeToString(child))
+        .join("")
+        .trim();
     }
 
-    function renderOptions(items) {
+    function parseXml(text) {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(text, "application/xml");
+      if (xmlDoc.querySelector("parsererror")) {
+        return { items: [], completeSongLabelHtml: "" };
+      }
+
+      const itemNodes = Array.from(xmlDoc.querySelectorAll("item"));
+      const items = [];
+      itemNodes.forEach((node) => {
+        const typeNode = node.querySelector("type");
+        const typeHtml = typeNode ? getInnerXml(typeNode) : "";
+        const typeText = typeNode?.textContent?.trim() || "";
+        const coefficientRaw = node.querySelector("coefficient")?.textContent?.trim() || "";
+        const coefficient = Number.parseFloat(coefficientRaw.replace(",", "."));
+        if (!typeText || Number.isNaN(coefficient)) return;
+        items.push({ typeHtml, coefficient });
+      });
+
+      const completeSongLabelNode = xmlDoc.querySelector("completeSongLabel");
+      const completeSongLabelHtml = completeSongLabelNode ? getInnerXml(completeSongLabelNode) : "";
+
+      return { items, completeSongLabelHtml };
+    }
+
+    function renderOptions(items, completeSongLabelHtml) {
       optionsEl.innerHTML = "";
       items.forEach((item) => {
         const label = document.createElement("label");
@@ -103,39 +128,72 @@
         checkbox.className = "item";
         checkbox.dataset.coefficient = String(item.coefficient);
         checkbox.addEventListener("change", updateScore);
-        label.append(checkbox, ` ${item.type}`);
+        const typeText = document.createElement("span");
+        typeText.innerHTML = ` ${item.typeHtml}`;
+        label.append(checkbox, typeText);
         optionsEl.append(label);
       });
+      const completeLabel = document.createElement("label");
+      const completeCheckbox = document.createElement("input");
+      completeCheckbox.type = "checkbox";
+      completeCheckbox.className = "item item-complete-song";
+      completeCheckbox.dataset.completeSong = "true";
+      completeCheckbox.addEventListener("change", updateScore);
+      const completeText = document.createElement("span");
+      completeText.innerHTML = ` ${completeSongLabelHtml || "Complete song"}`;
+      completeLabel.append(completeCheckbox, completeText);
+      optionsEl.append(completeLabel);
+
       checkboxes = Array.from(document.querySelectorAll(".item"));
+      completeSongCheckbox = completeCheckbox;
     }
 
-    async function loadOptionsFromCsv() {
+    async function loadOptionsFromXml() {
       try {
-        const response = await fetch("./checkboxes.csv");
-        if (!response.ok) throw new Error("CSV loading failed");
-        const csvText = await response.text();
-        const items = parseCsv(csvText);
-        if (items.length === 0) throw new Error("CSV format is invalid");
-        renderOptions(items);
+        const response = await fetch("./checkboxes.xml");
+        if (!response.ok) throw new Error("XML loading failed");
+        const xmlText = await response.text();
+        const { items, completeSongLabelHtml } = parseXml(xmlText);
+        if (items.length === 0) throw new Error("XML format is invalid");
+        renderOptions(items, completeSongLabelHtml);
       } catch (error) {
-        optionsEl.textContent = "Failed to load checkboxes.csv";
+        optionsEl.textContent = "Failed to load checkboxes.xml";
         checkboxes = [];
       }
       updateScore();
     }
 
     function updateScore() {
+      if (completeSongCheckbox && completeSongCheckbox.checked) {
+        let totalScore = 0;
+        checkboxes.forEach((checkbox) => {
+          if (checkbox === completeSongCheckbox) return;
+          checkbox.checked = false;
+          checkbox.disabled = true;
+          const coefficient = Number.parseFloat(checkbox.dataset.coefficient || "0");
+          if (Number.isNaN(coefficient)) return;
+          totalScore += coefficient;
+        });
+        currentScore = totalScore;
+        scoreEl.textContent = formatScore(currentScore);
+        generateImage();
+        return;
+      }
+
       let score = 0;
       checkboxes.forEach((checkbox) => {
+        if (checkbox === completeSongCheckbox) return;
+        checkbox.disabled = false;
         if (!checkbox.checked) return;
         const coefficient = Number.parseFloat(checkbox.dataset.coefficient || "0");
         if (Number.isNaN(coefficient)) return;
         score += coefficient;
       });
 
-      currentScore = score * 10;
+      currentScore = score;
 
       scoreEl.textContent = formatScore(currentScore);
+      generateImage();
     }
 
     function generateImage() {
@@ -150,14 +208,7 @@
       ctx.lineWidth = 4;
       ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
 
-      let text = "";
-      if (Math.abs(currentScore) < 0.000001) {
-        text = "NOAI";
-      } else if (Math.abs(currentScore - 10) < 0.000001) {
-        text = "ALLAI";
-      } else {
-        text = `${formatScore(currentScore)}AI`;
-      }
+      const text = `AIMUSIC ${formatScore(currentScore)}`;
 
       ctx.fillStyle = "#000000";
       const fontSize = Math.floor(canvas.height * 0.55);
@@ -169,11 +220,15 @@
       const y = (canvas.height + textHeight) / 2 - metrics.actualBoundingBoxDescent;
       ctx.fillText(text, canvas.width / 2, y);
 
-      resultImage.src = canvas.toDataURL("image/png");
+      const imageDataUrl = canvas.toDataURL("image/png");
+      resultImage.src = imageDataUrl;
+      downloadBtn.href = imageDataUrl;
+      downloadBtn.download = `${text}.png`;
+      downloadBtn.hidden = false;
+      downloadBtn.textContent = `Download ${text}.png`;
     }
 
-    generateBtn.addEventListener("click", generateImage);
-    loadOptionsFromCsv();
+    loadOptionsFromXml();
   </script>
 </body>
 </html>
