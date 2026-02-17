@@ -78,8 +78,8 @@
       if (lines.length < 2) return [];
 
       const headers = lines[0].split(",").map((v) => v.trim().toLowerCase());
-      const typeIndex = headers.indexOf("тип");
-      const coeffIndex = headers.indexOf("коэффициент");
+      const typeIndex = headers.indexOf("type");
+      const coeffIndex = headers.indexOf("coefficient");
       if (typeIndex === -1 || coeffIndex === -1) return [];
 
       const items = [];
