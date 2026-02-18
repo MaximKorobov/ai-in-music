@@ -33,17 +33,12 @@
 
     .options label {
       display: block;
-      margin: 0;
+      margin: 8px 0;
       font-size: 18px;
     }
 
-    .option-item {
-      margin: 8px 0;
-    }
-
     .service-links {
-      margin: 4px 0 0 24px;
-      padding-left: 14px;
+      margin: -4px 0 8px 24px;
       font-size: 13px;
       line-height: 1.3;
     }
@@ -147,28 +142,25 @@
       return { items, completeSongLabelText, completeSongLinks };
     }
 
-    function createServiceLinksList(links) {
+    function renderLinksLine(links) {
       if (!links.length) return null;
-      const list = document.createElement("ul");
-      list.className = "service-links";
-      links.forEach((link) => {
-        const listItem = document.createElement("li");
+      const line = document.createElement("div");
+      line.className = "service-links";
+      links.forEach((link, index) => {
+        if (index > 0) line.append(document.createTextNode(", "));
         const anchor = document.createElement("a");
         anchor.href = link.url;
         anchor.target = "_blank";
         anchor.rel = "noopener noreferrer";
         anchor.textContent = link.name;
-        listItem.append(anchor);
-        list.append(listItem);
+        line.append(anchor);
       });
-      return list;
+      return line;
     }
 
     function renderOptions(items, completeSongLabelText, completeSongLinks) {
       optionsEl.innerHTML = "";
       items.forEach((item) => {
-        const wrapper = document.createElement("div");
-        wrapper.className = "option-item";
         const label = document.createElement("label");
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -178,13 +170,10 @@
         const typeText = document.createElement("span");
         typeText.textContent = ` ${item.type}`;
         label.append(checkbox, typeText);
-        wrapper.append(label);
-        const linksList = createServiceLinksList(item.links);
-        if (linksList) wrapper.append(linksList);
-        optionsEl.append(wrapper);
+        optionsEl.append(label);
+        const linksLine = renderLinksLine(item.links);
+        if (linksLine) optionsEl.append(linksLine);
       });
-      const completeWrapper = document.createElement("div");
-      completeWrapper.className = "option-item";
       const completeLabel = document.createElement("label");
       const completeCheckbox = document.createElement("input");
       completeCheckbox.type = "checkbox";
@@ -194,10 +183,9 @@
       const completeText = document.createElement("span");
       completeText.textContent = ` ${completeSongLabelText || "Complete song"}`;
       completeLabel.append(completeCheckbox, completeText);
-      completeWrapper.append(completeLabel);
-      const completeLinksList = createServiceLinksList(completeSongLinks);
-      if (completeLinksList) completeWrapper.append(completeLinksList);
-      optionsEl.append(completeWrapper);
+      optionsEl.append(completeLabel);
+      const completeLinksLine = renderLinksLine(completeSongLinks);
+      if (completeLinksLine) optionsEl.append(completeLinksLine);
 
       checkboxes = Array.from(document.querySelectorAll(".item"));
       completeSongCheckbox = completeCheckbox;
