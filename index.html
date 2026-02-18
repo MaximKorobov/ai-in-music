@@ -33,8 +33,30 @@
 
     .options label {
       display: block;
-      margin: 8px 0;
+      margin: 0;
       font-size: 18px;
+    }
+
+    .option-item {
+      margin: 8px 0;
+    }
+
+    .service-links {
+      margin: 4px 0 0 24px;
+      padding-left: 14px;
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .service-links a {
+      color: #0b57d0;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .service-links a:hover,
+    .service-links a:focus-visible {
+      color: #0842a0;
     }
 
     .result {
@@ -86,42 +108,67 @@
       return Number(value.toFixed(1)).toString();
     }
 
-    function getInnerXml(node) {
-      const serializer = new XMLSerializer();
-      return Array.from(node.childNodes)
-        .map((child) => serializer.serializeToString(child))
-        .join("")
-        .trim();
+    function parseLinks(parentNode) {
+      const linksNode = Array.from(parentNode.children).find((child) => child.localName === "links");
+      if (!linksNode) return [];
+      return Array.from(linksNode.children)
+        .filter((child) => child.localName === "link")
+        .map((linkNode) => {
+          const name = linkNode.querySelector("name")?.textContent?.trim() || "";
+          const url = linkNode.querySelector("url")?.textContent?.trim() || "";
+          return { name, url };
+        })
+        .filter((link) => link.name && link.url);
     }
 
     function parseXml(text) {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(text, "application/xml");
       if (xmlDoc.querySelector("parsererror")) {
-        return { items: [], completeSongLabelHtml: "" };
+        return { items: [], completeSongLabelText: "", completeSongLinks: [] };
       }
 
       const itemNodes = Array.from(xmlDoc.querySelectorAll("item"));
       const items = [];
       itemNodes.forEach((node) => {
         const typeNode = node.querySelector("type");
-        const typeHtml = typeNode ? getInnerXml(typeNode) : "";
         const typeText = typeNode?.textContent?.trim() || "";
         const coefficientRaw = node.querySelector("coefficient")?.textContent?.trim() || "";
         const coefficient = Number.parseFloat(coefficientRaw.replace(",", "."));
         if (!typeText || Number.isNaN(coefficient)) return;
-        items.push({ typeHtml, coefficient });
+        items.push({ type: typeText, links: parseLinks(node), coefficient });
       });
 
       const completeSongLabelNode = xmlDoc.querySelector("completeSongLabel");
-      const completeSongLabelHtml = completeSongLabelNode ? getInnerXml(completeSongLabelNode) : "";
+      const completeSongLabelText = completeSongLabelNode?.textContent?.trim() || "";
+      const rootNode = xmlDoc.querySelector("checkboxes");
+      const completeSongLinks = rootNode ? parseLinks(rootNode) : [];
 
-      return { items, completeSongLabelHtml };
+      return { items, completeSongLabelText, completeSongLinks };
     }
 
-    function renderOptions(items, completeSongLabelHtml) {
+    function createServiceLinksList(links) {
+      if (!links.length) return null;
+      const list = document.createElement("ul");
+      list.className = "service-links";
+      links.forEach((link) => {
+        const listItem = document.createElement("li");
+        const anchor = document.createElement("a");
+        anchor.href = link.url;
+        anchor.target = "_blank";
+        anchor.rel = "noopener noreferrer";
+        anchor.textContent = link.name;
+        listItem.append(anchor);
+        list.append(listItem);
+      });
+      return list;
+    }
+
+    function renderOptions(items, completeSongLabelText, completeSongLinks) {
       optionsEl.innerHTML = "";
       items.forEach((item) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "option-item";
         const label = document.createElement("label");
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
@@ -129,10 +176,15 @@
         checkbox.dataset.coefficient = String(item.coefficient);
         checkbox.addEventListener("change", updateScore);
         const typeText = document.createElement("span");
-        typeText.innerHTML = ` ${item.typeHtml}`;
+        typeText.textContent = ` ${item.type}`;
         label.append(checkbox, typeText);
-        optionsEl.append(label);
+        wrapper.append(label);
+        const linksList = createServiceLinksList(item.links);
+        if (linksList) wrapper.append(linksList);
+        optionsEl.append(wrapper);
       });
+      const completeWrapper = document.createElement("div");
+      completeWrapper.className = "option-item";
       const completeLabel = document.createElement("label");
       const completeCheckbox = document.createElement("input");
       completeCheckbox.type = "checkbox";
@@ -140,9 +192,12 @@
       completeCheckbox.dataset.completeSong = "true";
       completeCheckbox.addEventListener("change", updateScore);
       const completeText = document.createElement("span");
-      completeText.innerHTML = ` ${completeSongLabelHtml || "Complete song"}`;
+      completeText.textContent = ` ${completeSongLabelText || "Complete song"}`;
       completeLabel.append(completeCheckbox, completeText);
-      optionsEl.append(completeLabel);
+      completeWrapper.append(completeLabel);
+      const completeLinksList = createServiceLinksList(completeSongLinks);
+      if (completeLinksList) completeWrapper.append(completeLinksList);
+      optionsEl.append(completeWrapper);
 
       checkboxes = Array.from(document.querySelectorAll(".item"));
       completeSongCheckbox = completeCheckbox;
@@ -153,9 +208,9 @@
         const response = await fetch("./checkboxes.xml");
         if (!response.ok) throw new Error("XML loading failed");
         const xmlText = await response.text();
-        const { items, completeSongLabelHtml } = parseXml(xmlText);
+        const { items, completeSongLabelText, completeSongLinks } = parseXml(xmlText);
         if (items.length === 0) throw new Error("XML format is invalid");
-        renderOptions(items, completeSongLabelHtml);
+        renderOptions(items, completeSongLabelText, completeSongLinks);
       } catch (error) {
         optionsEl.textContent = "Failed to load checkboxes.xml";
         checkboxes = [];
