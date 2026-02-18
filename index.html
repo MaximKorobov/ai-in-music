@@ -209,7 +209,7 @@
 
     <div class="options" id="options"></div>
 
-    <div class="result">Scoring result: <span id="score">0</span></div>
+    <div class="result">Score: <span id="score">0</span></div>
     <div class="image-wrap">
       <img id="resultImage" alt="Generated AI score image">
       <a id="downloadBtn" class="download-link" href="#" download hidden>Download image</a>
@@ -497,28 +497,40 @@
     }
 
     function generateImage() {
+      const text = `AI MUSIC ${formatScore(currentScore)}`;
+      const fontSize = 48;
+      const fontFamily = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
+      const borderWidth = 4;
+      const paddingX = 18;
+      const paddingY = 12;
+
+      // Measure text first to size the canvas around content.
+      const measureCanvas = document.createElement("canvas");
+      const measureCtx = measureCanvas.getContext("2d");
+      measureCtx.font = `800 ${fontSize}px ${fontFamily}`;
+      const metrics = measureCtx.measureText(text);
+      const ascent = metrics.actualBoundingBoxAscent || Math.floor(fontSize * 0.8);
+      const descent = metrics.actualBoundingBoxDescent || Math.floor(fontSize * 0.2);
+      const textWidth = Math.ceil(metrics.width);
+      const textHeight = ascent + descent;
+
       const canvas = document.createElement("canvas");
-      canvas.width = 280;
-      canvas.height = 90;
+      canvas.width = textWidth + paddingX * 2 + borderWidth * 2;
+      canvas.height = textHeight + paddingY * 2 + borderWidth * 2;
       const ctx = canvas.getContext("2d");
 
       ctx.fillStyle = "#ffffff";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.strokeStyle = "#000000";
-      ctx.lineWidth = 4;
-      ctx.strokeRect(2, 2, canvas.width - 4, canvas.height - 4);
-
-      const text = `AI MUSIC ${formatScore(currentScore)}`;
- 
+      ctx.lineWidth = borderWidth;
+      ctx.strokeRect(borderWidth / 2, borderWidth / 2, canvas.width - borderWidth, canvas.height - borderWidth);
       ctx.fillStyle = "#000000";
-      const fontSize = Math.floor(canvas.height * 0.55);
-      ctx.font = `800 ${fontSize}px "Manrope", "Trebuchet MS", sans-serif`;
-      ctx.textAlign = "center";
+      ctx.font = `800 ${fontSize}px ${fontFamily}`;
+      ctx.textAlign = "left";
       ctx.textBaseline = "alphabetic";
-      const metrics = ctx.measureText(text);
-      const textHeight = metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent;
-      const y = (canvas.height + textHeight) / 2 - metrics.actualBoundingBoxDescent;
-      ctx.fillText(text, canvas.width / 2, y);
+      const x = borderWidth + paddingX;
+      const y = borderWidth + paddingY + ascent;
+      ctx.fillText(text, x, y);
 
       const imageDataUrl = canvas.toDataURL("image/png");
       resultImage.src = imageDataUrl;
