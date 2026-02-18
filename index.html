@@ -47,12 +47,33 @@
       box-shadow: 0 10px 24px rgba(10, 18, 32, 0.07);
     }
 
-    h1 {
+    .readme-text {
       margin: 0 0 18px;
-      font-family: "Manrope", "Trebuchet MS", sans-serif;
-      font-size: clamp(27px, 3vw, 32px);
-      line-height: 1.1;
-      letter-spacing: 0.01em;
+      color: var(--text-muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .readme-text p,
+    .readme-text ul,
+    .readme-text ol,
+    .readme-text h1,
+    .readme-text h2,
+    .readme-text h3,
+    .readme-text h4 {
+      margin: 0 0 10px;
+    }
+
+    .readme-text ul,
+    .readme-text ol {
+      padding-left: 18px;
+    }
+
+    .readme-text code {
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      background: #eff2f6;
+      border-radius: 4px;
+      padding: 1px 5px;
     }
 
     .options {
@@ -184,7 +205,7 @@
 </head>
 <body>
   <div class="app">
-    <h1>AI in Music scoring</h1>
+    <div id="readmeText" class="readme-text"></div>
 
     <div class="options" id="options"></div>
 
@@ -200,6 +221,7 @@
     const scoreEl = document.getElementById("score");
     const resultImage = document.getElementById("resultImage");
     const downloadBtn = document.getElementById("downloadBtn");
+    const readmeTextEl = document.getElementById("readmeText");
 
     let checkboxes = [];
     let completeSongCheckbox = null;
@@ -332,6 +354,107 @@
       updateScore();
     }
 
+    async function loadReadmeText() {
+      const candidates = ["./readme.md", "./README.md"];
+      for (const filePath of candidates) {
+        try {
+          const response = await fetch(filePath);
+          if (!response.ok) continue;
+          const text = (await response.text()).trim();
+          if (!text) continue;
+          readmeTextEl.innerHTML = markdownToHtml(text);
+          return;
+        } catch (error) {
+          // Try next candidate.
+        }
+      }
+      readmeTextEl.innerHTML = "";
+    }
+
+    function escapeHtml(text) {
+      return text
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function formatInlineMd(text) {
+      let result = escapeHtml(text);
+      result = result.replace(/`([^`]+)`/g, "<code>$1</code>");
+      result = result.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+      result = result.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      result = result.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      return result;
+    }
+
+    function markdownToHtml(markdown) {
+      const lines = markdown.replaceAll("\r\n", "\n").split("\n");
+      const html = [];
+      let inUl = false;
+      let inOl = false;
+
+      const closeLists = () => {
+        if (inUl) {
+          html.push("</ul>");
+          inUl = false;
+        }
+        if (inOl) {
+          html.push("</ol>");
+          inOl = false;
+        }
+      };
+
+      lines.forEach((rawLine) => {
+        const line = rawLine.trim();
+        if (!line) {
+          closeLists();
+          return;
+        }
+
+        const heading = line.match(/^(#{1,4})\s+(.*)$/);
+        if (heading) {
+          closeLists();
+          const level = heading[1].length;
+          html.push(`<h${level}>${formatInlineMd(heading[2])}</h${level}>`);
+          return;
+        }
+
+        const ordered = line.match(/^\d+\.\s+(.*)$/);
+        if (ordered) {
+          if (!inOl) {
+            if (inUl) {
+              html.push("</ul>");
+              inUl = false;
+            }
+            html.push("<ol>");
+            inOl = true;
+          }
+          html.push(`<li>${formatInlineMd(ordered[1])}</li>`);
+          return;
+        }
+
+        const unordered = line.match(/^[-*]\s+(.*)$/);
+        if (unordered) {
+          if (!inUl) {
+            if (inOl) {
+              html.push("</ol>");
+              inOl = false;
+            }
+            html.push("<ul>");
+            inUl = true;
+          }
+          html.push(`<li>${formatInlineMd(unordered[1])}</li>`);
+          return;
+        }
+
+        closeLists();
+        html.push(`<p>${formatInlineMd(line)}</p>`);
+      });
+
+      closeLists();
+      return html.join("");
+    }
+
     function updateScore(event) {
       const changedCheckbox = event?.target instanceof HTMLInputElement ? event.target : null;
       if (
@@ -405,6 +528,7 @@
       downloadBtn.textContent = `Download ${text}.png`;
     }
 
+    loadReadmeText();
     loadOptionsFromXml();
   </script>
 </body>

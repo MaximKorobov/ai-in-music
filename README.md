@@ -1,4 +1,4 @@
-# AI in Music Scoring
+# AI in Music scoring
 
 The music industry is changing fast. More and more AI tools are used to create songs, from lyrics and voice to arrangement, mixing, and even complete tracks.
 
