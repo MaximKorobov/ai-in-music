@@ -40,6 +40,7 @@
     .lang-switch {
       display: inline-flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 6px;
       padding: 6px;
       border-radius: 999px;
@@ -270,6 +271,10 @@
     <div class="lang-switch" role="tablist" aria-label="Language switcher">
       <button type="button" class="lang-btn" data-lang="en" role="tab" aria-selected="false">EN</button>
       <button type="button" class="lang-btn" data-lang="ru" role="tab" aria-selected="false">RU</button>
+      <button type="button" class="lang-btn" data-lang="es" role="tab" aria-selected="false">ES</button>
+      <button type="button" class="lang-btn" data-lang="de" role="tab" aria-selected="false">DE</button>
+      <button type="button" class="lang-btn" data-lang="fr" role="tab" aria-selected="false">FR</button>
+      <button type="button" class="lang-btn" data-lang="zh" role="tab" aria-selected="false">ZH</button>
     </div>
 
     <div class="app">
@@ -330,12 +335,6 @@
         completeSongFallback: "Complete song",
         imageText: "AI MUSIC",
         shareTitle: "AI Music Score",
-        shareLabels: {
-          telegram: "Share on Telegram",
-          x: "Share on X",
-          facebook: "Share on Facebook",
-          linkedin: "Share on LinkedIn",
-        },
       },
       ru: {
         pageTitle: "Оценка AI в музыке",
@@ -346,12 +345,46 @@
         completeSongFallback: "Полный трек",
         imageText: "ИИ МУЗЫКА",
         shareTitle: "Оценка AI в музыке",
-        shareLabels: {
-          telegram: "Поделиться в Telegram",
-          x: "Поделиться в X",
-          facebook: "Поделиться в Facebook",
-          linkedin: "Поделиться в LinkedIn",
-        },
+      },
+      es: {
+        pageTitle: "Puntuación de IA en música",
+        scoreLabel: "Puntuación",
+        imageAlt: "Imagen con la puntuación de IA",
+        downloadPrefix: "Descargar",
+        loadError: "No se pudo cargar checkboxes.xml",
+        completeSongFallback: "Pista completa",
+        imageText: "IA MÚSICA",
+        shareTitle: "Puntuación de IA en música",
+      },
+      de: {
+        pageTitle: "KI in der Musik Bewertung",
+        scoreLabel: "Bewertung",
+        imageAlt: "Bild mit KI-Bewertung",
+        downloadPrefix: "Herunterladen",
+        loadError: "checkboxes.xml konnte nicht geladen werden",
+        completeSongFallback: "Kompletter Track",
+        imageText: "KI MUSIK",
+        shareTitle: "KI in der Musik Bewertung",
+      },
+      fr: {
+        pageTitle: "Évaluation de l'IA en musique",
+        scoreLabel: "Note",
+        imageAlt: "Image avec la note de l'IA",
+        downloadPrefix: "Télécharger",
+        loadError: "Impossible de charger checkboxes.xml",
+        completeSongFallback: "Morceau complet",
+        imageText: "IA MUSIQUE",
+        shareTitle: "Évaluation de l'IA en musique",
+      },
+      zh: {
+        pageTitle: "AI 音乐评分",
+        scoreLabel: "评分",
+        imageAlt: "AI 评分图像",
+        downloadPrefix: "下载",
+        loadError: "无法加载 checkboxes.xml",
+        completeSongFallback: "完整曲目",
+        imageText: "AI 音乐",
+        shareTitle: "AI 音乐评分",
       },
     };
 
@@ -360,6 +393,10 @@
       if (saved && translations[saved]) return saved;
       const browserLang = navigator.language?.toLowerCase() || "";
       if (browserLang.startsWith("ru")) return "ru";
+      if (browserLang.startsWith("es")) return "es";
+      if (browserLang.startsWith("de")) return "de";
+      if (browserLang.startsWith("fr")) return "fr";
+      if (browserLang.startsWith("zh")) return "zh";
       return "en";
     }
 
@@ -377,10 +414,10 @@
       document.documentElement.lang = currentLang;
       scoreLabelEl.textContent = t.scoreLabel;
       resultImage.alt = t.imageAlt;
-      shareTelegramEl.setAttribute("aria-label", t.shareLabels.telegram);
-      shareXEl.setAttribute("aria-label", t.shareLabels.x);
-      shareFacebookEl.setAttribute("aria-label", t.shareLabels.facebook);
-      shareLinkedInEl.setAttribute("aria-label", t.shareLabels.linkedin);
+      shareTelegramEl.setAttribute("aria-label", "Share on Telegram");
+      shareXEl.setAttribute("aria-label", "Share on X");
+      shareFacebookEl.setAttribute("aria-label", "Share on Facebook");
+      shareLinkedInEl.setAttribute("aria-label", "Share on LinkedIn");
       shareTelegramEl.title = "Telegram";
       shareXEl.title = "X";
       shareFacebookEl.title = "Facebook";
@@ -513,7 +550,15 @@
 
     async function loadOptionsFromXml() {
       try {
-        const xmlPath = currentLang === "ru" ? "./checkboxes.ru.xml" : "./checkboxes.xml";
+        const xmlPathMap = {
+          en: "./checkboxes.xml",
+          ru: "./checkboxes.ru.xml",
+          es: "./checkboxes.es.xml",
+          de: "./checkboxes.de.xml",
+          fr: "./checkboxes.fr.xml",
+          zh: "./checkboxes.zh.xml",
+        };
+        const xmlPath = xmlPathMap[currentLang] || "./checkboxes.xml";
         const response = await fetch(xmlPath);
         if (!response.ok) throw new Error("XML loading failed");
         const xmlText = await response.text();
@@ -528,9 +573,19 @@
     }
 
     async function loadReadmeText() {
-      const candidates = currentLang === "ru"
-        ? ["./readme.ru.md", "./README.ru.md", "./readme.md", "./README.md"]
-        : ["./readme.md", "./README.md", "./readme.ru.md", "./README.ru.md"];
+      const readmeByLang = {
+        en: ["./readme.md", "./README.md"],
+        ru: ["./readme.ru.md", "./README.ru.md"],
+        es: ["./readme.es.md", "./README.es.md"],
+        de: ["./readme.de.md", "./README.de.md"],
+        fr: ["./readme.fr.md", "./README.fr.md"],
+        zh: ["./readme.zh.md", "./README.zh.md"],
+      };
+      const candidates = [
+        ...(readmeByLang[currentLang] || []),
+        "./readme.md",
+        "./README.md",
+      ];
       for (const filePath of candidates) {
         try {
           const response = await fetch(filePath);
