@@ -37,6 +37,38 @@
       background: var(--bg);
     }
 
+    .lang-switch {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px;
+      border-radius: 999px;
+      border: 1px solid var(--panel-border);
+      background: var(--panel);
+      box-shadow: 0 6px 14px rgba(10, 18, 32, 0.06);
+      margin: 0 0 12px;
+    }
+
+    .lang-switch button {
+      border: 0;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-family: "Manrope", "Trebuchet MS", sans-serif;
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: color 0.2s ease, background 0.2s ease;
+    }
+
+    .lang-switch button.is-active {
+      color: var(--text-main);
+      background: var(--chip-bg);
+      border: 1px solid var(--chip-border);
+    }
+
     .app {
       width: 100%;
       max-width: 540px;
@@ -235,12 +267,17 @@
 </head>
 <body>
   <div class="page-wrap">
+    <div class="lang-switch" role="tablist" aria-label="Language switcher">
+      <button type="button" class="lang-btn" data-lang="en" role="tab" aria-selected="false">EN</button>
+      <button type="button" class="lang-btn" data-lang="ru" role="tab" aria-selected="false">RU</button>
+    </div>
+
     <div class="app">
       <div id="readmeText" class="readme-text"></div>
 
       <div class="options" id="options"></div>
 
-      <div class="result">Score: <span id="score">0</span></div>
+      <div class="result"><span id="scoreLabel">Score</span>: <span id="score">0</span></div>
       <div class="image-wrap">
         <img id="resultImage" alt="Generated AI score image">
         <a id="downloadBtn" class="download-link" href="#" download hidden>Download image</a>
@@ -268,6 +305,7 @@
   <script>
     const optionsEl = document.getElementById("options");
     const scoreEl = document.getElementById("score");
+    const scoreLabelEl = document.getElementById("scoreLabel");
     const resultImage = document.getElementById("resultImage");
     const downloadBtn = document.getElementById("downloadBtn");
     const readmeTextEl = document.getElementById("readmeText");
@@ -275,14 +313,83 @@
     const shareXEl = document.getElementById("shareX");
     const shareFacebookEl = document.getElementById("shareFacebook");
     const shareLinkedInEl = document.getElementById("shareLinkedIn");
+    const langButtons = Array.from(document.querySelectorAll(".lang-btn"));
 
     let checkboxes = [];
     let completeSongCheckbox = null;
     let currentScore = 0;
+    let currentLang = "en";
+
+    const translations = {
+      en: {
+        pageTitle: "AI in Music scoring",
+        scoreLabel: "Score",
+        imageAlt: "Generated AI score image",
+        downloadPrefix: "Download",
+        loadError: "Failed to load checkboxes.xml",
+        completeSongFallback: "Complete song",
+        imageText: "AI MUSIC",
+        shareTitle: "AI Music Score",
+        shareLabels: {
+          telegram: "Share on Telegram",
+          x: "Share on X",
+          facebook: "Share on Facebook",
+          linkedin: "Share on LinkedIn",
+        },
+      },
+      ru: {
+        pageTitle: "Оценка AI в музыке",
+        scoreLabel: "Оценка",
+        imageAlt: "Изображение с оценкой AI",
+        downloadPrefix: "Скачать",
+        loadError: "Не удалось загрузить checkboxes.xml",
+        completeSongFallback: "Полный трек",
+        imageText: "ИИ МУЗЫКА",
+        shareTitle: "Оценка AI в музыке",
+        shareLabels: {
+          telegram: "Поделиться в Telegram",
+          x: "Поделиться в X",
+          facebook: "Поделиться в Facebook",
+          linkedin: "Поделиться в LinkedIn",
+        },
+      },
+    };
+
+    function getInitialLanguage() {
+      const saved = localStorage.getItem("lang");
+      if (saved && translations[saved]) return saved;
+      const browserLang = navigator.language?.toLowerCase() || "";
+      if (browserLang.startsWith("ru")) return "ru";
+      return "en";
+    }
+
+    function setActiveLangButton(lang) {
+      langButtons.forEach((button) => {
+        const isActive = button.dataset.lang === lang;
+        button.classList.toggle("is-active", isActive);
+        button.setAttribute("aria-selected", String(isActive));
+      });
+    }
+
+    function setStaticTexts() {
+      const t = translations[currentLang];
+      document.title = t.pageTitle;
+      document.documentElement.lang = currentLang;
+      scoreLabelEl.textContent = t.scoreLabel;
+      resultImage.alt = t.imageAlt;
+      shareTelegramEl.setAttribute("aria-label", t.shareLabels.telegram);
+      shareXEl.setAttribute("aria-label", t.shareLabels.x);
+      shareFacebookEl.setAttribute("aria-label", t.shareLabels.facebook);
+      shareLinkedInEl.setAttribute("aria-label", t.shareLabels.linkedin);
+      shareTelegramEl.title = "Telegram";
+      shareXEl.title = "X";
+      shareFacebookEl.title = "Facebook";
+      shareLinkedInEl.title = "LinkedIn";
+    }
 
     function setupShareLinks() {
       const pageUrl = window.location.href;
-      const title = "AI Music Score";
+      const title = translations[currentLang].shareTitle;
       const encodedUrl = encodeURIComponent(pageUrl);
       const encodedTitle = encodeURIComponent(title);
 
@@ -392,7 +499,7 @@
       completeCheckbox.dataset.completeSong = "true";
       completeCheckbox.addEventListener("change", updateScore);
       const completeText = document.createElement("span");
-      completeText.textContent = ` ${completeSongLabelText || "Complete song"}`;
+      completeText.textContent = ` ${completeSongLabelText || translations[currentLang].completeSongFallback}`;
       completeLabel.append(completeCheckbox, completeText);
       completeCard.append(completeLabel);
       bindCardToggle(completeCard, completeCheckbox);
@@ -406,21 +513,24 @@
 
     async function loadOptionsFromXml() {
       try {
-        const response = await fetch("./checkboxes.xml");
+        const xmlPath = currentLang === "ru" ? "./checkboxes.ru.xml" : "./checkboxes.xml";
+        const response = await fetch(xmlPath);
         if (!response.ok) throw new Error("XML loading failed");
         const xmlText = await response.text();
         const { items, completeSongLabelText, completeSongLinks } = parseXml(xmlText);
         if (items.length === 0) throw new Error("XML format is invalid");
         renderOptions(items, completeSongLabelText, completeSongLinks);
       } catch (error) {
-        optionsEl.textContent = "Failed to load checkboxes.xml";
+        optionsEl.textContent = translations[currentLang].loadError;
         checkboxes = [];
       }
       updateScore();
     }
 
     async function loadReadmeText() {
-      const candidates = ["./readme.md", "./README.md"];
+      const candidates = currentLang === "ru"
+        ? ["./readme.ru.md", "./README.ru.md", "./readme.md", "./README.md"]
+        : ["./readme.md", "./README.md", "./readme.ru.md", "./README.ru.md"];
       for (const filePath of candidates) {
         try {
           const response = await fetch(filePath);
@@ -562,7 +672,7 @@
     }
 
     function generateImage() {
-      const text = `AI MUSIC ${formatScore(currentScore)}`;
+      const text = `${translations[currentLang].imageText} ${formatScore(currentScore)}`;
       const fontSize = 48;
       const fontFamily = '"SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace';
       const borderWidth = 4;
@@ -602,12 +712,30 @@
       downloadBtn.href = imageDataUrl;
       downloadBtn.download = `${text}.png`;
       downloadBtn.hidden = false;
-      downloadBtn.textContent = `Download ${text}.png`;
+      downloadBtn.textContent = `${translations[currentLang].downloadPrefix} ${text}.png`;
     }
 
-    setupShareLinks();
-    loadReadmeText();
-    loadOptionsFromXml();
+    function setLanguage(lang) {
+      if (!translations[lang]) return;
+      currentLang = lang;
+      localStorage.setItem("lang", lang);
+      setActiveLangButton(lang);
+      setStaticTexts();
+      setupShareLinks();
+      loadReadmeText();
+      loadOptionsFromXml();
+      updateScore();
+    }
+
+    langButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const lang = button.dataset.lang || "en";
+        if (lang === currentLang) return;
+        setLanguage(lang);
+      });
+    });
+
+    setLanguage(getInitialLanguage());
   </script>
 </body>
 </html>
